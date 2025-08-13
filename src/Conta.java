@@ -4,31 +4,38 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+// A classe 'Conta' é 'abstract', o que significa que ela não pode ser instanciada diretamente.
+// Ela serve como um modelo base para as classes filhas (ContaCorrente, ContaPoupanca)
+// que herdam seus atributos e comportamentos.
 public abstract class Conta implements Iconta {
 
-    private static  final int AGENCIA_PADRÃO = 1206;
+    // Constantes estáticas e finais (valores que não mudam).
+    // 'static' significa que a variável pertence à classe, não ao objeto.
+    // 'final' significa que o valor é constante.
+    private static  final int AGENCIA_PADRAO = 1206;
     private static  final AtomicInteger SEQUENCIAL = new AtomicInteger(1206);
-    // Gera um número sequencial único para cada nova conta, começando em 1.
-    // O AtomicInteger garante que esse número seja seguro em ambientes com múltiplas threads.
-
+    
+    // Atributos protegidos, acessíveis pelas classes filhas.
     protected int numeroAgencia;
     protected int numeroConta;
     protected double saldo;
-    protected Cliente cliente; // Adicionando o cliente para associar a conta
-    protected List<String> historicoDeOperacoes = new ArrayList<>();
+    protected Cliente cliente; 
     
+    // Lista para armazenar objetos da classe Transacao.
+    // Esta é uma melhoria para organizar o histórico de operações de forma mais estruturada.
+    protected List<Transacao> historicoDeOperacoes = new ArrayList<>();
+    
+    // Construtor da classe Conta.
     public Conta(Cliente cliente) {
-        this.numeroAgencia = AGENCIA_PADRÃO;
+        this.numeroAgencia = AGENCIA_PADRAO;
+        // Usa o AtomicInteger para gerar um número de conta único e sequencial.
         this.numeroConta = SEQUENCIAL.getAndIncrement();
-        this.cliente = cliente; // Inicializando o cliente
+        this.cliente = cliente; 
     }
   
-    //Getters para ler os dados da conta
-    //Settes para modificar os dados da conta, se necessário.
-
+    // Métodos "Getters" para acessar os dados da conta.
     public int getNumeroAgencia() {
         return numeroAgencia;
-
     }
 
     public int getNumeroConta() {
@@ -39,25 +46,26 @@ public abstract class Conta implements Iconta {
         return saldo;
     } 
 
-  
+    // Métodos que implementam a interface Iconta.
     @Override
     public void sacar(double valor) {
         if (valor > 0 && this.saldo >= valor) {
             this.saldo -= valor;
-            historicoDeOperacoes.add(String.format("SAQUE DE R$ %.2f realizado com sucesso!", valor));
+            // Cria um objeto Transacao e o adiciona ao histórico.
+            historicoDeOperacoes.add(new Transacao("SAQUE DE R$ %.2f realizado com sucesso!".formatted(valor), valor));
         } else {
-            // Adiciona a transação falha ao histórico
-            historicoDeOperacoes.add("SAQUE inválido ou saldo insuficiente.");
+            // Se a operação for inválida, registra uma transação de erro.
+            historicoDeOperacoes.add(new Transacao("SAQUE inválido ou saldo insuficiente.", 0));
         }
     }
     
     @Override
     public void depositar(double valor) { 
         if (valor > 0) {
-            this.saldo = this.saldo + valor;
-            historicoDeOperacoes.add(String.format("DEPÓSITO DE R$ %.2f realizado com sucesso!", valor));
+            this.saldo += valor;
+            historicoDeOperacoes.add(new Transacao("DEPÓSITO DE R$ %.2f realizado com sucesso!".formatted(valor), valor));
         } else {
-            historicoDeOperacoes.add("VALOR DEDEPÓSITO inválido.");
+            historicoDeOperacoes.add(new Transacao("VALOR DE DEPÓSITO inválido.", 0));
         }
     }
    
@@ -66,14 +74,14 @@ public abstract class Conta implements Iconta {
        if (valor > 0 && this.saldo >= valor) {
         this.sacar(valor);
         contaDestino.depositar(valor);
-        historicoDeOperacoes.add(String.format("TRANSFERÊNCIA DE R$ %.2f para a conta %d realizada com sucesso!", valor, contaDestino.getNumeroConta()));
+        historicoDeOperacoes.add(new Transacao("TRANSFERÊNCIA DE R$ %.2f para a conta %d realizada com sucesso!".formatted(valor, contaDestino.getNumeroConta()), valor));
          } else {
-            historicoDeOperacoes.add("TRANSFERÊNCIA inválida ou saldo insuficiente.");
+            historicoDeOperacoes.add(new Transacao("TRANSFERÊNCIA inválida ou saldo insuficiente.", 0));
        }
     }
 
+    // Métodos para imprimir informações do extrato.
     protected void imprimirInfosComuns() {
-
         System.out.println("=============================================");
         System.out.println("        AUTOATENDIMENTO - CEF UTINGA");
         System.out.println(String.format("DATA: %s         HORA: %s",
@@ -83,26 +91,24 @@ public abstract class Conta implements Iconta {
         System.out.println(String.format("CONTA: %03d.%03d.%03d-%d", this.numeroConta / 100000000, (this.numeroConta % 100000000) / 100000, (this.numeroConta % 100000) / 10, this.numeroConta % 10));
         System.out.println(String.format("CLIENTE: %s", this.cliente.getNome().toUpperCase()));
         System.out.println("=============================================");
-        System.out.println("EXTRATO MES PARA SIMPLES CONFERENCIA");
+        System.out.println("EXTRATO MÊS PARA SIMPLES CONFERÊNCIA");
         System.out.println("ULTIMOS 30 DIAS");
         System.out.println("---------------------------------------------");
     }
 
-    // Método para imprimir o histórico de transações
+    // Este método agora itera sobre a lista de objetos Transacao.
     protected void imprimirHistoricoDeOperacoes() {
-        for (String operacao : historicoDeOperacoes) {
-            System.out.println("  - " + operacao);
+        for (Transacao operacao : historicoDeOperacoes) {
+            System.out.println("  - " + operacao.getDescricao() + " em " + DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss").format(operacao.getData()));
         }
         System.out.println("---------------------------------------------");
         System.out.println(String.format("SALDO TOTAL: R$ %.2f", this.saldo));
         System.out.println("=============================================");
     }
     
-    // O método principal que une as duas partes do extrato
     @Override
     public void imprimirExtrato() {
         imprimirInfosComuns();
         imprimirHistoricoDeOperacoes();
     }
 }
-        
